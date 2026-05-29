@@ -148,6 +148,7 @@ class GameState {
 
     public boolean startNextRound() {
         if (roundNumber <= TOTAL_ROUNDS && playersHaveFunds()) {
+            addActivityDivider("Buying Round " + roundNumber + " of " + TOTAL_ROUNDS);
             currentRound = new RoundManager(roundNumber, TOTAL_ROUNDS, players, null, activityLog);
             currentRound.initializeForGui();
             roundNumber++;
@@ -175,6 +176,7 @@ class GameState {
     public void startSellingPhase() {
         saleRoundNumber = 1;
         lastSaleResults.clear();
+        addActivityDivider("Phase 2 - Selling Round " + saleRoundNumber + " of " + TOTAL_ROUNDS);
         generateChecks();
     }
 
@@ -182,7 +184,12 @@ class GameState {
 
     public void advanceSaleRound() {
         saleRoundNumber++;
+        addActivityDivider("Selling Round " + saleRoundNumber + " of " + TOTAL_ROUNDS);
         generateChecks();
+    }
+
+    private void addActivityDivider(String label) {
+        activityLog.add("========== " + label + " ==========");
     }
 
     public boolean hasCardsToSell() {
@@ -609,7 +616,12 @@ class AuctionPanel extends JPanel {
         StringBuilder log = new StringBuilder();
         int start = Math.max(0, gameState.getActivityLog().size() - 15);
         for (int i = start; i < gameState.getActivityLog().size(); i++) {
-            log.append("• ").append(gameState.getActivityLog().get(i)).append("\n");
+            String entry = gameState.getActivityLog().get(i);
+            if (entry.startsWith("==========")) {
+                log.append(entry).append("\n");
+            } else {
+                log.append("• ").append(entry).append("\n");
+            }
         }
         activityLogArea.setText(log.toString());
         activityLogArea.setCaretPosition(activityLogArea.getDocument().getLength());
@@ -1059,7 +1071,12 @@ class SellPanel extends JPanel {
         StringBuilder log = new StringBuilder();
         int start = Math.max(0, gameState.getActivityLog().size() - 15);
         for (int i = start; i < gameState.getActivityLog().size(); i++) {
-            log.append("• ").append(gameState.getActivityLog().get(i)).append("\n");
+            String entry = gameState.getActivityLog().get(i);
+            if (entry.startsWith("==========")) {
+                log.append(entry).append("\n");
+            } else {
+                log.append("• ").append(entry).append("\n");
+            }
         }
         activityLogArea.setText(log.toString());
         activityLogArea.setCaretPosition(activityLogArea.getDocument().getLength());
