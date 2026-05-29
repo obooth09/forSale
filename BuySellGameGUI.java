@@ -3,6 +3,54 @@ import java.util.*;
 import java.util.List;
 import javax.swing.*;
 import javax.swing.border.*;
+import javax.swing.plaf.FontUIResource;
+
+class CuteTheme {
+    public static final Color PINK = new Color(255, 232, 240);
+    public static final Color PANEL_PINK = new Color(255, 242, 247);
+    public static final Color DEEP_PINK = new Color(255, 183, 207);
+    public static final Color YELLOW = new Color(255, 236, 168);
+
+    public static Font font(int style, int size) {
+        String[] names = {"Comic Sans MS", "Marker Felt", "Chalkboard SE", "Arial Rounded MT Bold", "SansSerif"};
+        for (String name : names) {
+            Font font = new Font(name, style, size);
+            if (font.getFamily().equalsIgnoreCase(name) || "SansSerif".equals(name)) {
+                return font;
+            }
+        }
+        return new Font("SansSerif", style, size);
+    }
+
+    public static void install() {
+        Font defaultFont = font(Font.PLAIN, 14);
+        Enumeration<Object> keys = UIManager.getDefaults().keys();
+        while (keys.hasMoreElements()) {
+            Object key = keys.nextElement();
+            Object value = UIManager.get(key);
+            if (value instanceof FontUIResource) {
+                UIManager.put(key, new FontUIResource(defaultFont));
+            }
+        }
+    }
+
+    public static void applyPinkBackgrounds(Component component) {
+        if (component instanceof JPanel || component instanceof JScrollPane || component instanceof JViewport) {
+            component.setBackground(PINK);
+        }
+        if (component instanceof JTextArea || component instanceof JTable) {
+            component.setBackground(PANEL_PINK);
+        }
+        if (component instanceof JComponent) {
+            ((JComponent) component).setOpaque(true);
+        }
+        if (component instanceof Container) {
+            for (Component child : ((Container) component).getComponents()) {
+                applyPinkBackgrounds(child);
+            }
+        }
+    }
+}
 
 /**
  * Swing GUI for Buy & Sell Auction Game
@@ -14,6 +62,7 @@ public class BuySellGameGUI extends JFrame {
     private GameState gameState;
 
     public BuySellGameGUI() {
+        CuteTheme.install();
         setTitle("Buy & Sell Auction Game");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1000, 700);
@@ -28,6 +77,7 @@ public class BuySellGameGUI extends JFrame {
         mainPanel.add(new AuctionPanel(this, gameState), "auction");
         mainPanel.add(new SellPanel(this, gameState), "sell");
         mainPanel.add(new ResultsPanel(this, gameState), "results");
+        CuteTheme.applyPinkBackgrounds(mainPanel);
 
         add(mainPanel);
         showSetupScreen();
@@ -244,17 +294,17 @@ class SetupPanel extends JPanel {
         this.gameState = gameState;
         setLayout(new BorderLayout(10, 10));
         setBorder(new EmptyBorder(20, 20, 20, 20));
-        setBackground(new Color(240, 240, 240));
+        setBackground(CuteTheme.PINK);
 
         // Title
         JLabel titleLabel = new JLabel("Buy & Sell - Player Setup");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 32));
+        titleLabel.setFont(CuteTheme.font(Font.BOLD, 32));
         add(titleLabel, BorderLayout.NORTH);
 
         // Player setup panel
         JPanel setupPanel = new JPanel();
         setupPanel.setLayout(new GridLayout(4, 2, 10, 15));
-        setupPanel.setBackground(new Color(240, 240, 240));
+        setupPanel.setBackground(CuteTheme.PINK);
 
         playerNames = new JTextField[4];
         isAiCheckboxes = new JCheckBox[4];
@@ -263,25 +313,25 @@ class SetupPanel extends JPanel {
 
         for (int i = 0; i < 4; i++) {
             JLabel nameLabel = new JLabel("Player " + (i + 1) + " Name:");
-            nameLabel.setFont(new Font("Arial", Font.PLAIN, 16));
+            nameLabel.setFont(CuteTheme.font(Font.PLAIN, 16));
             playerNames[i] = new JTextField(defaultNames[i], 15);
-            playerNames[i].setFont(new Font("Arial", Font.PLAIN, 14));
+            playerNames[i].setFont(CuteTheme.font(Font.PLAIN, 14));
 
             JPanel playerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-            playerPanel.setBackground(new Color(240, 240, 240));
+            playerPanel.setBackground(CuteTheme.PINK);
             playerPanel.add(nameLabel);
             playerPanel.add(playerNames[i]);
 
             JPanel checkPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-            checkPanel.setBackground(new Color(240, 240, 240));
+            checkPanel.setBackground(CuteTheme.PINK);
             isAiCheckboxes[i] = new JCheckBox("AI Player", i > 0);
-            isAiCheckboxes[i].setFont(new Font("Arial", Font.PLAIN, 14));
-            isAiCheckboxes[i].setBackground(new Color(240, 240, 240));
+            isAiCheckboxes[i].setFont(CuteTheme.font(Font.PLAIN, 14));
+            isAiCheckboxes[i].setBackground(CuteTheme.PINK);
             if (i == 0) isAiCheckboxes[i].setEnabled(false);
             checkPanel.add(isAiCheckboxes[i]);
 
             aiDifficultyBoxes[i] = new JComboBox<>(new String[]{"Easy", "Greedy"});
-            aiDifficultyBoxes[i].setFont(new Font("Arial", Font.PLAIN, 14));
+            aiDifficultyBoxes[i].setFont(CuteTheme.font(Font.PLAIN, 14));
             aiDifficultyBoxes[i].setSelectedItem(i > 0 ? "Easy" : "Easy");
             aiDifficultyBoxes[i].setEnabled(i > 0);
             checkPanel.add(aiDifficultyBoxes[i]);
@@ -294,13 +344,13 @@ class SetupPanel extends JPanel {
         }
 
         JPanel centerPanel = new JPanel(new BorderLayout());
-        centerPanel.setBackground(new Color(240, 240, 240));
+        centerPanel.setBackground(CuteTheme.PINK);
         centerPanel.add(setupPanel, BorderLayout.NORTH);
         add(centerPanel, BorderLayout.CENTER);
 
         // Begin button
         JButton beginButton = new JButton("BEGIN GAME");
-        beginButton.setFont(new Font("Arial", Font.BOLD, 18));
+        beginButton.setFont(CuteTheme.font(Font.BOLD, 18));
         beginButton.setBackground(new Color(34, 139, 34));
         beginButton.setForeground(Color.BLACK);
         beginButton.setPreferredSize(new Dimension(200, 60));
@@ -309,7 +359,7 @@ class SetupPanel extends JPanel {
         beginButton.addActionListener(e -> startGame());
         
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 20));
-        buttonPanel.setBackground(new Color(240, 240, 240));
+        buttonPanel.setBackground(CuteTheme.PINK);
         buttonPanel.add(beginButton);
         add(buttonPanel, BorderLayout.SOUTH);
     }
@@ -358,31 +408,31 @@ class AuctionPanel extends JPanel {
         this.gameState = gameState;
         setLayout(new BorderLayout(10, 10));
         setBorder(new EmptyBorder(10, 10, 10, 10));
-        setBackground(Color.WHITE);
+        setBackground(CuteTheme.PINK);
 
         // Top: Round info
         JPanel topPanel = new JPanel(new BorderLayout(10, 10));
-        topPanel.setBackground(new Color(220, 220, 220));
+        topPanel.setBackground(CuteTheme.DEEP_PINK);
         topPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
         roundLabel = new JLabel();
-        roundLabel.setFont(new Font("Arial", Font.BOLD, 22));
+        roundLabel.setFont(CuteTheme.font(Font.BOLD, 22));
         topPanel.add(roundLabel, BorderLayout.WEST);
 
         propertiesLabel = new JLabel();
-        propertiesLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        propertiesLabel.setFont(CuteTheme.font(Font.BOLD, 14));
         topPanel.add(propertiesLabel, BorderLayout.CENTER);
 
         highestBidLabel = new JLabel();
-        highestBidLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        highestBidLabel.setFont(CuteTheme.font(Font.BOLD, 14));
         topPanel.add(highestBidLabel, BorderLayout.EAST);
 
         JPanel headerPanel = new JPanel(new BorderLayout(0, 6));
-        headerPanel.setBackground(Color.WHITE);
+        headerPanel.setBackground(CuteTheme.PINK);
         headerPanel.add(topPanel, BorderLayout.NORTH);
 
         noticeLabel = new JLabel(" ");
         noticeLabel.setHorizontalAlignment(JLabel.CENTER);
-        noticeLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        noticeLabel.setFont(CuteTheme.font(Font.BOLD, 16));
         noticeLabel.setForeground(Color.BLACK);
         noticeLabel.setOpaque(true);
         noticeLabel.setBackground(new Color(255, 225, 150));
@@ -394,26 +444,26 @@ class AuctionPanel extends JPanel {
 
         // Middle: Players and cards
         JPanel middlePanel = new JPanel(new BorderLayout(10, 10));
-        middlePanel.setBackground(Color.WHITE);
+        middlePanel.setBackground(CuteTheme.PINK);
 
         // Cards display
         propertiesDisplayPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
-        propertiesDisplayPanel.setBackground(new Color(240, 240, 255));
+        propertiesDisplayPanel.setBackground(CuteTheme.PANEL_PINK);
         propertiesDisplayPanel.setBorder(new TitledBorder("Available Cards"));
         middlePanel.add(propertiesDisplayPanel, BorderLayout.NORTH);
 
         playersPanel = new JPanel();
         playersPanel.setLayout(new GridLayout(1, 4, 10, 0));
-        playersPanel.setBackground(Color.WHITE);
+        playersPanel.setBackground(CuteTheme.PINK);
         playersPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
         middlePanel.add(playersPanel, BorderLayout.CENTER);
 
         JPanel rightPanel = new JPanel(new BorderLayout(0, 10));
-        rightPanel.setBackground(Color.WHITE);
+        rightPanel.setBackground(CuteTheme.PINK);
         rightPanel.setPreferredSize(new Dimension(250, 0));
 
         yourPropertiesLabel = new JLabel("Your cards:");
-        yourPropertiesLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        yourPropertiesLabel.setFont(CuteTheme.font(Font.BOLD, 14));
         rightPanel.add(yourPropertiesLabel, BorderLayout.NORTH);
 
         activityLogArea = new JTextArea();
@@ -429,10 +479,10 @@ class AuctionPanel extends JPanel {
         add(middlePanel, BorderLayout.CENTER);
 
         JPanel bottomContainer = new JPanel(new BorderLayout(0, 8));
-        bottomContainer.setBackground(Color.WHITE);
+        bottomContainer.setBackground(CuteTheme.PINK);
 
         yourHandPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 8));
-        yourHandPanel.setBackground(new Color(248, 248, 248));
+        yourHandPanel.setBackground(CuteTheme.PANEL_PINK);
         yourHandPanel.setBorder(new TitledBorder("Your Hand"));
         JScrollPane handScrollPane = new JScrollPane(yourHandPanel);
         handScrollPane.setPreferredSize(new Dimension(0, 105));
@@ -443,26 +493,26 @@ class AuctionPanel extends JPanel {
 
         // Bid controls
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 15));
-        bottomPanel.setBackground(Color.WHITE);
+        bottomPanel.setBackground(CuteTheme.PINK);
         bottomPanel.setBorder(new LineBorder(Color.LIGHT_GRAY, 2, true));
 
         JLabel bidLabel = new JLabel("Your bid ($1000 increments):");
-        bidLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        bidLabel.setFont(CuteTheme.font(Font.BOLD, 14));
         bottomPanel.add(bidLabel);
 
         SpinnerNumberModel bidModel = new SpinnerNumberModel(1000, 1000, 18000, 1000);
         bidInputSpinner = new JSpinner(bidModel);
-        bidInputSpinner.setFont(new Font("Arial", Font.PLAIN, 16));
+        bidInputSpinner.setFont(CuteTheme.font(Font.PLAIN, 16));
         bidInputSpinner.setPreferredSize(new Dimension(120, 40));
         JSpinner.DefaultEditor bidEditor = (JSpinner.DefaultEditor) bidInputSpinner.getEditor();
         JFormattedTextField bidTextField = bidEditor.getTextField();
         bidTextField.setForeground(Color.BLACK);
-        bidTextField.setFont(new Font("Arial", Font.PLAIN, 16));
+        bidTextField.setFont(CuteTheme.font(Font.PLAIN, 16));
         bottomPanel.add(bidInputSpinner);
 
         bidButton = new JButton("BID");
-        bidButton.setFont(new Font("Arial", Font.BOLD, 16));
-        bidButton.setBackground(new Color(0, 102, 204));
+        bidButton.setFont(CuteTheme.font(Font.BOLD, 16));
+        bidButton.setBackground(new Color(255, 188, 214));
         bidButton.setForeground(Color.BLACK);
         bidButton.setPreferredSize(new Dimension(120, 50));
         bidButton.setFocusPainted(false);
@@ -471,8 +521,8 @@ class AuctionPanel extends JPanel {
         bottomPanel.add(bidButton);
 
         passButton = new JButton("PASS");
-        passButton.setFont(new Font("Arial", Font.BOLD, 16));
-        passButton.setBackground(new Color(204, 0, 0));
+        passButton.setFont(CuteTheme.font(Font.BOLD, 16));
+        passButton.setBackground(new Color(255, 150, 180));
         passButton.setForeground(Color.BLACK);
         passButton.setPreferredSize(new Dimension(120, 50));
         passButton.setFocusPainted(false);
@@ -504,16 +554,16 @@ class AuctionPanel extends JPanel {
             Property p = props.get(i);
             JPanel propCard = new JPanel();
             propCard.setLayout(new BoxLayout(propCard, BoxLayout.Y_AXIS));
-            propCard.setBackground(new Color(255, 200, 124));
+            propCard.setBackground(CuteTheme.YELLOW);
             propCard.setBorder(new LineBorder(Color.BLACK, 3, false));
             propCard.setPreferredSize(new Dimension(100, 120));
             
             JLabel numLabel = new JLabel("Card");
-            numLabel.setFont(new Font("Arial", Font.BOLD, 14));
+            numLabel.setFont(CuteTheme.font(Font.BOLD, 14));
             numLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
             
             JLabel valueLabel = new JLabel(String.valueOf(p.getValue()));
-            valueLabel.setFont(new Font("Arial", Font.BOLD, 32));
+            valueLabel.setFont(CuteTheme.font(Font.BOLD, 32));
             valueLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
             
             propCard.add(Box.createVerticalStrut(10));
@@ -573,7 +623,7 @@ class AuctionPanel extends JPanel {
         JSpinner.DefaultEditor bidEditor = (JSpinner.DefaultEditor) bidInputSpinner.getEditor();
         JFormattedTextField bidTextField = bidEditor.getTextField();
         bidTextField.setForeground(Color.BLACK);
-        bidTextField.setFont(new Font("Arial", Font.PLAIN, 16));
+        bidTextField.setFont(CuteTheme.font(Font.PLAIN, 16));
         bidInputSpinner.requestFocus();
         playersPanel.revalidate();
         playersPanel.repaint();
@@ -588,7 +638,7 @@ class AuctionPanel extends JPanel {
 
         if (handCards.isEmpty()) {
             JLabel emptyLabel = new JLabel("No cards yet");
-            emptyLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+            emptyLabel.setFont(CuteTheme.font(Font.PLAIN, 14));
             yourHandPanel.add(emptyLabel);
         } else {
             for (Property card : handCards) {
@@ -603,16 +653,16 @@ class AuctionPanel extends JPanel {
     private JPanel createSmallCard(Property property) {
         JPanel card = new JPanel();
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-        card.setBackground(new Color(255, 234, 186));
+        card.setBackground(CuteTheme.YELLOW);
         card.setBorder(new LineBorder(Color.BLACK, 2, false));
         card.setPreferredSize(new Dimension(58, 72));
 
         JLabel cardLabel = new JLabel("Card");
-        cardLabel.setFont(new Font("Arial", Font.BOLD, 11));
+        cardLabel.setFont(CuteTheme.font(Font.BOLD, 11));
         cardLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JLabel valueLabel = new JLabel(String.valueOf(property.getValue()));
-        valueLabel.setFont(new Font("Arial", Font.BOLD, 26));
+        valueLabel.setFont(CuteTheme.font(Font.BOLD, 26));
         valueLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         card.add(Box.createVerticalStrut(6));
@@ -626,29 +676,29 @@ class AuctionPanel extends JPanel {
         JPanel card = new JPanel();
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
         card.setBorder(new LineBorder(Color.BLACK, 2, true));
-        card.setBackground(new Color(200, 220, 255));
+        card.setBackground(new Color(255, 220, 233));
         card.setPreferredSize(new Dimension(140, 160));
 
         JLabel nameLabel = new JLabel(p.getName());
-        nameLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        nameLabel.setFont(CuteTheme.font(Font.BOLD, 14));
         nameLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         String type = p.isHuman() ? "HUMAN" : "AI " + p.getAiDifficulty().toUpperCase();
         JLabel typeLabel = new JLabel(type);
-        typeLabel.setFont(new Font("Arial", Font.PLAIN, 11));
+        typeLabel.setFont(CuteTheme.font(Font.PLAIN, 11));
         typeLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JLabel balanceLabel = new JLabel("$" + p.getBalance());
-        balanceLabel.setFont(new Font("Arial", Font.BOLD, 13));
+        balanceLabel.setFont(CuteTheme.font(Font.BOLD, 13));
         balanceLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JLabel bidLabel = new JLabel("Bid: $" + p.getCurrentBid());
-        bidLabel.setFont(new Font("Arial", Font.PLAIN, 12));
+        bidLabel.setFont(CuteTheme.font(Font.PLAIN, 12));
         bidLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         int totalCards = p.getPurchasedProperties().size() + p.getPassedProperties().size();
         JLabel cardsLabel = new JLabel("Cards: " + totalCards);
-        cardsLabel.setFont(new Font("Arial", Font.PLAIN, 12));
+        cardsLabel.setFont(CuteTheme.font(Font.PLAIN, 12));
         cardsLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         card.add(Box.createVerticalStrut(8));
@@ -819,30 +869,30 @@ class SellPanel extends JPanel {
         this.gameState = gameState;
         setLayout(new BorderLayout(10, 10));
         setBorder(new EmptyBorder(10, 10, 10, 10));
-        setBackground(Color.WHITE);
+        setBackground(CuteTheme.PINK);
 
         JPanel topPanel = new JPanel(new BorderLayout(10, 10));
-        topPanel.setBackground(new Color(220, 220, 220));
+        topPanel.setBackground(CuteTheme.DEEP_PINK);
         topPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
         titleLabel = new JLabel("Phase 2 - Sell Cards");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 22));
+        titleLabel.setFont(CuteTheme.font(Font.BOLD, 22));
         topPanel.add(titleLabel, BorderLayout.WEST);
 
         statusLabel = new JLabel();
-        statusLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        statusLabel.setFont(CuteTheme.font(Font.BOLD, 14));
         topPanel.add(statusLabel, BorderLayout.EAST);
         add(topPanel, BorderLayout.NORTH);
 
         JPanel centerPanel = new JPanel(new BorderLayout(10, 10));
-        centerPanel.setBackground(Color.WHITE);
+        centerPanel.setBackground(CuteTheme.PINK);
 
         checksPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
-        checksPanel.setBackground(new Color(235, 250, 240));
+        checksPanel.setBackground(CuteTheme.PANEL_PINK);
         checksPanel.setBorder(new TitledBorder("Checks"));
         centerPanel.add(checksPanel, BorderLayout.NORTH);
 
         playersPanel = new JPanel(new GridLayout(1, 4, 10, 0));
-        playersPanel.setBackground(Color.WHITE);
+        playersPanel.setBackground(CuteTheme.PINK);
         playersPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
         centerPanel.add(playersPanel, BorderLayout.CENTER);
 
@@ -858,10 +908,10 @@ class SellPanel extends JPanel {
         add(centerPanel, BorderLayout.CENTER);
 
         JPanel bottomPanel = new JPanel(new BorderLayout(10, 10));
-        bottomPanel.setBackground(Color.WHITE);
+        bottomPanel.setBackground(CuteTheme.PINK);
 
         handPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 8));
-        handPanel.setBackground(new Color(248, 248, 248));
+        handPanel.setBackground(CuteTheme.PANEL_PINK);
         handPanel.setBorder(new TitledBorder("Choose One Card To Sell"));
         JScrollPane handScrollPane = new JScrollPane(handPanel);
         handScrollPane.setPreferredSize(new Dimension(0, 115));
@@ -870,7 +920,7 @@ class SellPanel extends JPanel {
         bottomPanel.add(handScrollPane, BorderLayout.CENTER);
 
         sellButton = new JButton("SELL CARD");
-        sellButton.setFont(new Font("Arial", Font.BOLD, 16));
+        sellButton.setFont(CuteTheme.font(Font.BOLD, 16));
         sellButton.setForeground(Color.BLACK);
         sellButton.setBackground(new Color(34, 139, 34));
         sellButton.setPreferredSize(new Dimension(150, 55));
@@ -878,7 +928,7 @@ class SellPanel extends JPanel {
         sellButton.setBorder(new LineBorder(Color.BLACK, 2));
         sellButton.addActionListener(e -> handleSellButton());
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 20));
-        buttonPanel.setBackground(Color.WHITE);
+        buttonPanel.setBackground(CuteTheme.PINK);
         buttonPanel.add(sellButton);
         bottomPanel.add(buttonPanel, BorderLayout.EAST);
 
@@ -901,15 +951,15 @@ class SellPanel extends JPanel {
         for (int check : gameState.getCurrentChecks()) {
             JPanel card = new JPanel();
             card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-            card.setBackground(new Color(190, 235, 200));
+            card.setBackground(new Color(223, 255, 224));
             card.setBorder(new LineBorder(Color.BLACK, 3, false));
             card.setPreferredSize(new Dimension(120, 80));
 
             JLabel label = new JLabel("Check");
-            label.setFont(new Font("Arial", Font.BOLD, 13));
+            label.setFont(CuteTheme.font(Font.BOLD, 13));
             label.setAlignmentX(Component.CENTER_ALIGNMENT);
             JLabel amount = new JLabel("$" + check);
-            amount.setFont(new Font("Arial", Font.BOLD, 22));
+            amount.setFont(CuteTheme.font(Font.BOLD, 22));
             amount.setAlignmentX(Component.CENTER_ALIGNMENT);
 
             card.add(Box.createVerticalStrut(10));
@@ -927,18 +977,18 @@ class SellPanel extends JPanel {
         for (Player player : gameState.getPlayers()) {
             JPanel card = new JPanel();
             card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-            card.setBackground(new Color(220, 235, 255));
+            card.setBackground(new Color(255, 220, 233));
             card.setBorder(new LineBorder(Color.BLACK, 2, true));
             card.setPreferredSize(new Dimension(140, 150));
 
             JLabel name = new JLabel(player.getName());
-            name.setFont(new Font("Arial", Font.BOLD, 14));
+            name.setFont(CuteTheme.font(Font.BOLD, 14));
             name.setAlignmentX(Component.CENTER_ALIGNMENT);
             JLabel checks = new JLabel("Checks: $" + player.getCheckTotal());
-            checks.setFont(new Font("Arial", Font.BOLD, 13));
+            checks.setFont(CuteTheme.font(Font.BOLD, 13));
             checks.setAlignmentX(Component.CENTER_ALIGNMENT);
             JLabel cards = new JLabel("Cards left: " + player.getAllCards().size());
-            cards.setFont(new Font("Arial", Font.PLAIN, 12));
+            cards.setFont(CuteTheme.font(Font.PLAIN, 12));
             cards.setAlignmentX(Component.CENTER_ALIGNMENT);
 
             card.add(Box.createVerticalStrut(18));
@@ -961,16 +1011,16 @@ class SellPanel extends JPanel {
 
         if (cards.isEmpty()) {
             JLabel emptyLabel = new JLabel("No cards left");
-            emptyLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+            emptyLabel.setFont(CuteTheme.font(Font.PLAIN, 14));
             handPanel.add(emptyLabel);
             sellButton.setText("SELL ROUND");
         } else {
             sellButton.setText("SELL CARD");
             for (Property card : cards) {
                 JToggleButton button = new JToggleButton(String.valueOf(card.getValue()));
-                button.setFont(new Font("Arial", Font.BOLD, 24));
+                button.setFont(CuteTheme.font(Font.BOLD, 24));
                 button.setForeground(Color.BLACK);
-                button.setBackground(new Color(255, 234, 186));
+                button.setBackground(CuteTheme.YELLOW);
                 button.setPreferredSize(new Dimension(82, 88));
                 button.setFocusPainted(false);
                 button.setBorder(new LineBorder(Color.BLACK, 2));
@@ -993,11 +1043,11 @@ class SellPanel extends JPanel {
                 JToggleButton button = (JToggleButton) component;
                 if (button.isSelected()) {
                     button.setText("<html><center>Selected<br>" + button.getActionCommand() + "</center></html>");
-                    button.setBackground(new Color(255, 210, 90));
+                    button.setBackground(new Color(255, 205, 224));
                     button.setBorder(new LineBorder(new Color(0, 120, 215), 5));
                 } else {
                     button.setText(button.getActionCommand());
-                    button.setBackground(new Color(255, 234, 186));
+                    button.setBackground(CuteTheme.YELLOW);
                     button.setBorder(new LineBorder(Color.BLACK, 2));
                 }
             }
@@ -1053,17 +1103,17 @@ class SellPanel extends JPanel {
         results.sort((a, b) -> Integer.compare(b.getCheckAmount(), a.getCheckAmount()));
         if (results.isEmpty()) {
             JLabel emptyLabel = new JLabel("No cards were sold this round");
-            emptyLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+            emptyLabel.setFont(CuteTheme.font(Font.PLAIN, 14));
             handPanel.add(emptyLabel);
         } else {
             GameState.SaleResult winner = results.get(0);
             JLabel winnerLabel = new JLabel(winner.getPlayerName() + " won this round with " + winner.getCardName() + " and got $" + winner.getCheckAmount());
-            winnerLabel.setFont(new Font("Arial", Font.BOLD, 16));
+            winnerLabel.setFont(CuteTheme.font(Font.BOLD, 16));
             handPanel.add(winnerLabel);
 
             for (GameState.SaleResult result : results) {
                 JLabel resultLabel = new JLabel(result.getPlayerName() + ": " + result.getCardName() + " -> $" + result.getCheckAmount());
-                resultLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+                resultLabel.setFont(CuteTheme.font(Font.PLAIN, 14));
                 resultLabel.setBorder(new EmptyBorder(0, 12, 0, 12));
                 handPanel.add(resultLabel);
             }
@@ -1089,21 +1139,21 @@ class ResultsPanel extends JPanel {
         this.gameState = gameState;
         setLayout(new BorderLayout(10, 10));
         setBorder(new EmptyBorder(20, 20, 20, 20));
-        setBackground(Color.WHITE);
+        setBackground(CuteTheme.PINK);
 
         // Title
         JLabel titleLabel = new JLabel("Final Results");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 24));
+        titleLabel.setFont(CuteTheme.font(Font.BOLD, 24));
         add(titleLabel, BorderLayout.NORTH);
 
         // Placeholder for table
         JPanel tablePanel = new JPanel(new BorderLayout());
-        tablePanel.setBackground(Color.WHITE);
+        tablePanel.setBackground(CuteTheme.PINK);
         add(tablePanel, BorderLayout.CENTER);
 
         // Winner announcement
         winnerLabel = new JLabel();
-        winnerLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        winnerLabel.setFont(CuteTheme.font(Font.BOLD, 16));
         winnerLabel.setHorizontalAlignment(JLabel.CENTER);
         add(winnerLabel, BorderLayout.SOUTH);
     }
@@ -1113,10 +1163,10 @@ class ResultsPanel extends JPanel {
         removeAll();
 
         setLayout(new GridBagLayout());
-        setBackground(new Color(245, 245, 245));
+        setBackground(CuteTheme.PINK);
 
         JPanel stickerPanel = new JPanel(new BorderLayout(12, 12));
-        stickerPanel.setBackground(new Color(255, 245, 190));
+        stickerPanel.setBackground(CuteTheme.YELLOW);
         stickerPanel.setBorder(new CompoundBorder(
                 new LineBorder(Color.BLACK, 4, true),
                 new EmptyBorder(20, 24, 20, 24)
@@ -1124,19 +1174,19 @@ class ResultsPanel extends JPanel {
         stickerPanel.setPreferredSize(new Dimension(560, 430));
 
         JLabel titleLabel = new JLabel("Final Leaderboard");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 28));
+        titleLabel.setFont(CuteTheme.font(Font.BOLD, 28));
         titleLabel.setHorizontalAlignment(JLabel.CENTER);
         stickerPanel.add(titleLabel, BorderLayout.NORTH);
 
         // Results table
         JPanel tablePanel = new JPanel(new BorderLayout());
-        tablePanel.setBackground(new Color(255, 245, 190));
+        tablePanel.setBackground(CuteTheme.YELLOW);
 
         String[] columns = {"Rank", "Player", "Check Money", "Cards Left"};
         Object[][] data = calculateResults();
 
         resultsTable = new JTable(data, columns);
-        resultsTable.setFont(new Font("Arial", Font.PLAIN, 12));
+        resultsTable.setFont(CuteTheme.font(Font.PLAIN, 12));
         resultsTable.setRowHeight(25);
         resultsTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         JScrollPane scrollPane = new JScrollPane(resultsTable);
@@ -1146,17 +1196,17 @@ class ResultsPanel extends JPanel {
 
         // Winner announcement
         JPanel bottomPanel = new JPanel(new BorderLayout(10, 10));
-        bottomPanel.setBackground(new Color(255, 245, 190));
+        bottomPanel.setBackground(CuteTheme.YELLOW);
         if (data.length > 0) {
             String winner = (String) data[0][1];
             winnerLabel = new JLabel("Winner: " + winner);
-            winnerLabel.setFont(new Font("Arial", Font.BOLD, 20));
+            winnerLabel.setFont(CuteTheme.font(Font.BOLD, 20));
             winnerLabel.setHorizontalAlignment(JLabel.CENTER);
             bottomPanel.add(winnerLabel, BorderLayout.CENTER);
         }
 
         JButton playAgainButton = new JButton("PLAY AGAIN");
-        playAgainButton.setFont(new Font("Arial", Font.BOLD, 16));
+        playAgainButton.setFont(CuteTheme.font(Font.BOLD, 16));
         playAgainButton.setForeground(Color.BLACK);
         playAgainButton.setBackground(new Color(34, 139, 34));
         playAgainButton.setFocusPainted(false);
@@ -1164,7 +1214,7 @@ class ResultsPanel extends JPanel {
         playAgainButton.setPreferredSize(new Dimension(160, 50));
         playAgainButton.addActionListener(e -> frame.showSetupScreen());
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
-        buttonPanel.setBackground(new Color(255, 245, 190));
+        buttonPanel.setBackground(CuteTheme.YELLOW);
         buttonPanel.add(playAgainButton);
         bottomPanel.add(buttonPanel, BorderLayout.SOUTH);
         stickerPanel.add(bottomPanel, BorderLayout.SOUTH);
