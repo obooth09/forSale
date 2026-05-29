@@ -96,12 +96,14 @@ class GameState {
         startNextRound();
     }
 
-    public void startNextRound() {
+    public boolean startNextRound() {
         if (roundNumber <= TOTAL_ROUNDS && playersHaveFunds()) {
             currentRound = new RoundManager(roundNumber, TOTAL_ROUNDS, players, null, activityLog);
             currentRound.initializeForGui();
             roundNumber++;
+            return true;
         }
+        return false;
     }
 
     private boolean playersHaveFunds() {
@@ -742,8 +744,7 @@ class AuctionPanel extends JPanel {
     }
 
     private void advanceAfterCompletedRound() {
-        gameState.startNextRound();
-        if (gameState.hasMoreRounds()) {
+        if (gameState.startNextRound()) {
             setBidControlsEnabled(true);
             refresh();
             checkAutomaticHumanPass();
@@ -1110,15 +1111,26 @@ class ResultsPanel extends JPanel {
     public void initializeResults() {
         // Clear and rebuild
         removeAll();
-        
-        // Title
-        JLabel titleLabel = new JLabel("Final Results");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 24));
-        add(titleLabel, BorderLayout.NORTH);
+
+        setLayout(new GridBagLayout());
+        setBackground(new Color(245, 245, 245));
+
+        JPanel stickerPanel = new JPanel(new BorderLayout(12, 12));
+        stickerPanel.setBackground(new Color(255, 245, 190));
+        stickerPanel.setBorder(new CompoundBorder(
+                new LineBorder(Color.BLACK, 4, true),
+                new EmptyBorder(20, 24, 20, 24)
+        ));
+        stickerPanel.setPreferredSize(new Dimension(560, 430));
+
+        JLabel titleLabel = new JLabel("Final Leaderboard");
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 28));
+        titleLabel.setHorizontalAlignment(JLabel.CENTER);
+        stickerPanel.add(titleLabel, BorderLayout.NORTH);
 
         // Results table
         JPanel tablePanel = new JPanel(new BorderLayout());
-        tablePanel.setBackground(Color.WHITE);
+        tablePanel.setBackground(new Color(255, 245, 190));
 
         String[] columns = {"Rank", "Player", "Check Money", "Cards Left"};
         Object[][] data = calculateResults();
@@ -1130,15 +1142,15 @@ class ResultsPanel extends JPanel {
         JScrollPane scrollPane = new JScrollPane(resultsTable);
         tablePanel.add(scrollPane, BorderLayout.CENTER);
 
-        add(tablePanel, BorderLayout.CENTER);
+        stickerPanel.add(tablePanel, BorderLayout.CENTER);
 
         // Winner announcement
         JPanel bottomPanel = new JPanel(new BorderLayout(10, 10));
-        bottomPanel.setBackground(Color.WHITE);
+        bottomPanel.setBackground(new Color(255, 245, 190));
         if (data.length > 0) {
             String winner = (String) data[0][1];
             winnerLabel = new JLabel("Winner: " + winner);
-            winnerLabel.setFont(new Font("Arial", Font.BOLD, 16));
+            winnerLabel.setFont(new Font("Arial", Font.BOLD, 20));
             winnerLabel.setHorizontalAlignment(JLabel.CENTER);
             bottomPanel.add(winnerLabel, BorderLayout.CENTER);
         }
@@ -1152,10 +1164,12 @@ class ResultsPanel extends JPanel {
         playAgainButton.setPreferredSize(new Dimension(160, 50));
         playAgainButton.addActionListener(e -> frame.showSetupScreen());
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
-        buttonPanel.setBackground(Color.WHITE);
+        buttonPanel.setBackground(new Color(255, 245, 190));
         buttonPanel.add(playAgainButton);
         bottomPanel.add(buttonPanel, BorderLayout.SOUTH);
-        add(bottomPanel, BorderLayout.SOUTH);
+        stickerPanel.add(bottomPanel, BorderLayout.SOUTH);
+
+        add(stickerPanel, new GridBagConstraints());
         
         revalidate();
         repaint();
