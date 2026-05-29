@@ -285,7 +285,7 @@ class RoundManager {
 
         if (player.getCurrentBid() == 0) {
             int minBid = Math.max(BID_INCREMENT, currentHighestBid + BID_INCREMENT);
-            if (minBid <= maxWill && minBid <= player.getBalance()) {
+            if (shouldAiBid(player, minBid, maxWill)) {
                 int bid = Math.min(player.getBalance(), Math.max(BID_INCREMENT, currentHighestBid + BID_INCREMENT));
                 bid = ((bid + BID_INCREMENT - 1) / BID_INCREMENT) * BID_INCREMENT;
                 placeBid(player, bid);
@@ -295,22 +295,43 @@ class RoundManager {
 
         if (isLeader) {
             int next = currentHighestBid + BID_INCREMENT;
-            if (next <= maxWill && next <= player.getBalance()) placeBid(player, next);
+            if (shouldAiBid(player, next, maxWill)) placeBid(player, next);
             else logActivity(player.getName() + " holds at " + formatMoney(currentHighestBid));
             return;
         }
 
         int minRaise = currentHighestBid + BID_INCREMENT;
-        if (minRaise <= maxWill && minRaise <= player.getBalance()) placeBid(player, minRaise);
+        if (shouldAiBid(player, minRaise, maxWill)) placeBid(player, minRaise);
         else passPlayer(player, "passes");
     }
 
+    private boolean shouldAiBid(Player player, int bidAmount, int maxWill) {
+        if (bidAmount > player.getBalance() || bidAmount > maxWill) return false;
+
+        double pressure = maxWill == 0 ? 1.0 : (double) bidAmount / maxWill;
+        double passChance;
+        if ("greedy".equals(player.getAiDifficulty())) {
+            passChance = 0.04 + (pressure * 0.16);
+        } else {
+            passChance = 0.25 + (pressure * 0.45);
+        }
+        return random.nextDouble() >= Math.min(0.85, passChance);
+    }
+
     private int calculateAiWillingness(Player player, Property highestProperty) {
-        double aggr = 0.25 + random.nextDouble() * 0.35; // 0.25 - 0.6
-        if (highestProperty.getValue() <= 7) {
-            aggr *= 0.55;
-        } else if (highestProperty.getValue() <= 12) {
-            aggr *= 0.75;
+        double aggr;
+        if ("greedy".equals(player.getAiDifficulty())) {
+            aggr = 0.45 + random.nextDouble() * 0.35; // 0.45 - 0.8
+        } else {
+            aggr = 0.15 + random.nextDouble() * 0.2; // 0.15 - 0.35
+        }
+
+        if (!"greedy".equals(player.getAiDifficulty())) {
+            if (highestProperty.getValue() <= 7) {
+                aggr *= 0.45;
+            } else if (highestProperty.getValue() <= 12) {
+                aggr *= 0.65;
+            }
         }
         int target = (int)(highestProperty.getValue() * 1000 * aggr);
         target = (target / BID_INCREMENT) * BID_INCREMENT;
@@ -516,11 +537,13 @@ class RoundManager {
             Player player = players.get(index);
             if (!player.isHuman() && activePlayers.contains(player) && !player.hasPassed()) {
                 guiTurnIndex = (index + 1) % players.size();
+                int activeBefore = activePlayers.size();
+                int highestBefore = currentHighestBid;
                 aiTurn(player);
                 if (activePlayers.size() <= 1) {
                     concludeRoundGui(gameState);
                 }
-                return true;
+                return activePlayers.size() != activeBefore || currentHighestBid != highestBefore;
             }
         }
 
@@ -574,6 +597,7 @@ class Player {
     private final String name;
     private int balance;
     private final boolean human;
+    private String aiDifficulty = "easy";
     private int currentBid;
     private int checkTotal;
     private boolean passed;
@@ -590,6 +614,7 @@ class Player {
     public int getBalance() { return balance; }
     public int getCheckTotal() { return checkTotal; }
     public boolean isHuman() { return human; }
+    public String getAiDifficulty() { return aiDifficulty; }
     public int getCurrentBid() { return currentBid; }
     public List<Property> getPurchasedProperties() { return purchasedProperties; }
     public List<Property> getPassedProperties() { return passedProperties; }
@@ -597,6 +622,7 @@ class Player {
 
     public void resetRoundState() { currentBid = 0; passed = false; }
     public void setCurrentBid(int bid) { currentBid = bid; }
+    public void setAiDifficulty(String aiDifficulty) { this.aiDifficulty = aiDifficulty; }
     public void setHasPassed(boolean passed) { this.passed = passed; }
     public void adjustBalance(int amount) { balance += amount; }
     public void addCheck(int amount) { checkTotal += amount; }

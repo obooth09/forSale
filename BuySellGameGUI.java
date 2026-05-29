@@ -49,6 +49,7 @@ public class BuySellGameGUI extends JFrame {
     }
 
     public void showResultsScreen() {
+        ((ResultsPanel) mainPanel.getComponent(3)).initializeResults();
         cardLayout.show(mainPanel, "results");
     }
 
@@ -71,6 +72,7 @@ class GameState {
     private List<Player> players = new ArrayList<>();
     private List<String> activityLog = new ArrayList<>();
     private List<Integer> currentChecks = new ArrayList<>();
+    private List<SaleResult> lastSaleResults = new ArrayList<>();
     private int roundNumber = 1;
     private int saleRoundNumber = 1;
     private static final int TOTAL_ROUNDS = 5;
@@ -79,13 +81,16 @@ class GameState {
 
     public GameState() {}
 
-    public void initializePlayers(String[] names, boolean[] isHuman) {
+    public void initializePlayers(String[] names, boolean[] isHuman, String[] aiDifficulties) {
         players.clear();
         for (int i = 0; i < names.length; i++) {
-            players.add(new Player(names[i], STARTING_BALANCE, isHuman[i]));
+            Player player = new Player(names[i], STARTING_BALANCE, isHuman[i]);
+            player.setAiDifficulty(aiDifficulties[i]);
+            players.add(player);
         }
         activityLog.clear();
         currentChecks.clear();
+        lastSaleResults.clear();
         roundNumber = 1;
         saleRoundNumber = 1;
         startNextRound();
@@ -109,6 +114,7 @@ class GameState {
     public List<Player> getPlayers() { return players; }
     public List<String> getActivityLog() { return activityLog; }
     public List<Integer> getCurrentChecks() { return new ArrayList<>(currentChecks); }
+    public List<SaleResult> getLastSaleResults() { return new ArrayList<>(lastSaleResults); }
     public int getSaleRoundNumber() { return saleRoundNumber; }
     public int getRoundNumber() { return roundNumber - 1; }
     public int getTotalRounds() { return TOTAL_ROUNDS; }
@@ -116,6 +122,14 @@ class GameState {
     public boolean hasMoreRounds() { return roundNumber <= TOTAL_ROUNDS && playersHaveFunds(); }
     public void startSellingPhase() {
         saleRoundNumber = 1;
+        lastSaleResults.clear();
+        generateChecks();
+    }
+
+    public boolean isFinalSaleRound() { return saleRoundNumber >= TOTAL_ROUNDS; }
+
+    public void advanceSaleRound() {
+        saleRoundNumber++;
         generateChecks();
     }
 
@@ -128,6 +142,7 @@ class GameState {
 
     public void processSaleRound(Property humanCard) {
         List<SaleChoice> choices = new ArrayList<>();
+        lastSaleResults.clear();
         Player humanPlayer = players.get(0);
         if (humanCard != null && humanPlayer.getAllCards().contains(humanCard)) {
             humanPlayer.removeCard(humanCard);
@@ -150,12 +165,8 @@ class GameState {
             SaleChoice choice = choices.get(i);
             int check = checks.get(i);
             choice.player.addCheck(check);
+            lastSaleResults.add(new SaleResult(choice.player.getName(), choice.card.getName(), choice.card.getValue(), check));
             activityLog.add(choice.player.getName() + " sells " + choice.card.getName() + " for $" + check);
-        }
-
-        saleRoundNumber++;
-        if (hasCardsToSell()) {
-            generateChecks();
         }
     }
 
@@ -195,6 +206,25 @@ class GameState {
             this.card = card;
         }
     }
+
+    public static class SaleResult {
+        private String playerName;
+        private String cardName;
+        private int cardValue;
+        private int checkAmount;
+
+        SaleResult(String playerName, String cardName, int cardValue, int checkAmount) {
+            this.playerName = playerName;
+            this.cardName = cardName;
+            this.cardValue = cardValue;
+            this.checkAmount = checkAmount;
+        }
+
+        public String getPlayerName() { return playerName; }
+        public String getCardName() { return cardName; }
+        public int getCardValue() { return cardValue; }
+        public int getCheckAmount() { return checkAmount; }
+    }
 }
 
 /**
@@ -203,6 +233,7 @@ class GameState {
 class SetupPanel extends JPanel {
     private JTextField[] playerNames;
     private JCheckBox[] isAiCheckboxes;
+    private JComboBox<String>[] aiDifficultyBoxes;
     private BuySellGameGUI frame;
     private GameState gameState;
 
@@ -225,6 +256,7 @@ class SetupPanel extends JPanel {
 
         playerNames = new JTextField[4];
         isAiCheckboxes = new JCheckBox[4];
+        aiDifficultyBoxes = new JComboBox[4];
         String[] defaultNames = {"You", "Ada", "Boris", "Cleo"};
 
         for (int i = 0; i < 4; i++) {
@@ -245,6 +277,15 @@ class SetupPanel extends JPanel {
             isAiCheckboxes[i].setBackground(new Color(240, 240, 240));
             if (i == 0) isAiCheckboxes[i].setEnabled(false);
             checkPanel.add(isAiCheckboxes[i]);
+
+            aiDifficultyBoxes[i] = new JComboBox<>(new String[]{"Easy", "Greedy"});
+            aiDifficultyBoxes[i].setFont(new Font("Arial", Font.PLAIN, 14));
+            aiDifficultyBoxes[i].setSelectedItem(i > 0 ? "Easy" : "Easy");
+            aiDifficultyBoxes[i].setEnabled(i > 0);
+            checkPanel.add(aiDifficultyBoxes[i]);
+
+            final int playerIndex = i;
+            isAiCheckboxes[i].addActionListener(e -> aiDifficultyBoxes[playerIndex].setEnabled(isAiCheckboxes[playerIndex].isSelected()));
 
             setupPanel.add(playerPanel);
             setupPanel.add(checkPanel);
@@ -274,14 +315,16 @@ class SetupPanel extends JPanel {
     private void startGame() {
         String[] names = new String[4];
         boolean[] isHuman = new boolean[4];
+        String[] aiDifficulties = new String[4];
 
         for (int i = 0; i < 4; i++) {
             names[i] = playerNames[i].getText().trim();
             if (names[i].isEmpty()) names[i] = (i == 0 ? "You" : "Player " + (i + 1));
             isHuman[i] = !isAiCheckboxes[i].isSelected();
+            aiDifficulties[i] = ((String) aiDifficultyBoxes[i].getSelectedItem()).toLowerCase();
         }
 
-        gameState.initializePlayers(names, isHuman);
+        gameState.initializePlayers(names, isHuman, aiDifficulties);
         frame.showAuctionScreen();
     }
 }
@@ -588,7 +631,7 @@ class AuctionPanel extends JPanel {
         nameLabel.setFont(new Font("Arial", Font.BOLD, 14));
         nameLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        String type = p.isHuman() ? "HUMAN" : "AI";
+        String type = p.isHuman() ? "HUMAN" : "AI " + p.getAiDifficulty().toUpperCase();
         JLabel typeLabel = new JLabel(type);
         typeLabel.setFont(new Font("Arial", Font.PLAIN, 11));
         typeLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -768,6 +811,7 @@ class SellPanel extends JPanel {
     private JButton sellButton;
     private ButtonGroup cardButtonGroup;
     private Property selectedCard;
+    private boolean showingRoundResults;
 
     public SellPanel(BuySellGameGUI frame, GameState gameState) {
         this.frame = frame;
@@ -831,7 +875,7 @@ class SellPanel extends JPanel {
         sellButton.setPreferredSize(new Dimension(150, 55));
         sellButton.setFocusPainted(false);
         sellButton.setBorder(new LineBorder(Color.BLACK, 2));
-        sellButton.addActionListener(e -> sellSelectedCard());
+        sellButton.addActionListener(e -> handleSellButton());
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 20));
         buttonPanel.setBackground(Color.WHITE);
         buttonPanel.add(sellButton);
@@ -842,8 +886,9 @@ class SellPanel extends JPanel {
 
     public void refresh() {
         selectedCard = null;
+        showingRoundResults = false;
         titleLabel.setText("Phase 2 - Sell Cards");
-        statusLabel.setText("Sale Round " + gameState.getSaleRoundNumber());
+        statusLabel.setText("Sale Round " + gameState.getSaleRoundNumber() + " of " + gameState.getTotalRounds());
         refreshChecks();
         refreshPlayers();
         refreshHand();
@@ -908,6 +953,7 @@ class SellPanel extends JPanel {
 
     private void refreshHand() {
         handPanel.removeAll();
+        handPanel.setBorder(new TitledBorder("Choose One Card To Sell"));
         cardButtonGroup = new ButtonGroup();
         List<Property> cards = gameState.getPlayers().get(0).getAllCards();
         cards.sort(Comparator.comparingInt(Property::getValue));
@@ -916,7 +962,7 @@ class SellPanel extends JPanel {
             JLabel emptyLabel = new JLabel("No cards left");
             emptyLabel.setFont(new Font("Arial", Font.PLAIN, 14));
             handPanel.add(emptyLabel);
-            sellButton.setText("CONTINUE");
+            sellButton.setText("SELL ROUND");
         } else {
             sellButton.setText("SELL CARD");
             for (Property card : cards) {
@@ -975,11 +1021,56 @@ class SellPanel extends JPanel {
         }
 
         gameState.processSaleRound(selectedCard);
-        if (gameState.hasCardsToSell()) {
-            refresh();
+        showRoundResults();
+    }
+
+    private void handleSellButton() {
+        if (showingRoundResults) {
+            if (gameState.isFinalSaleRound()) {
+                frame.showResultsScreen();
+            } else {
+                gameState.advanceSaleRound();
+                refresh();
+            }
         } else {
-            frame.showResultsScreen();
+            sellSelectedCard();
         }
+    }
+
+    private void showRoundResults() {
+        showingRoundResults = true;
+        selectedCard = null;
+        titleLabel.setText("Sale Round " + gameState.getSaleRoundNumber() + " Results");
+        statusLabel.setText(gameState.isFinalSaleRound() ? "Final sale round" : "Round complete");
+
+        refreshPlayers();
+        refreshLog();
+        handPanel.removeAll();
+        handPanel.setBorder(new TitledBorder("Round Results"));
+
+        List<GameState.SaleResult> results = gameState.getLastSaleResults();
+        results.sort((a, b) -> Integer.compare(b.getCheckAmount(), a.getCheckAmount()));
+        if (results.isEmpty()) {
+            JLabel emptyLabel = new JLabel("No cards were sold this round");
+            emptyLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+            handPanel.add(emptyLabel);
+        } else {
+            GameState.SaleResult winner = results.get(0);
+            JLabel winnerLabel = new JLabel(winner.getPlayerName() + " won this round with " + winner.getCardName() + " and got $" + winner.getCheckAmount());
+            winnerLabel.setFont(new Font("Arial", Font.BOLD, 16));
+            handPanel.add(winnerLabel);
+
+            for (GameState.SaleResult result : results) {
+                JLabel resultLabel = new JLabel(result.getPlayerName() + ": " + result.getCardName() + " -> $" + result.getCheckAmount());
+                resultLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+                resultLabel.setBorder(new EmptyBorder(0, 12, 0, 12));
+                handPanel.add(resultLabel);
+            }
+        }
+
+        sellButton.setText(gameState.isFinalSaleRound() ? "FINAL LEADERBOARD" : "NEXT ROUND");
+        handPanel.revalidate();
+        handPanel.repaint();
     }
 }
 
@@ -991,7 +1082,6 @@ class ResultsPanel extends JPanel {
     private GameState gameState;
     private JTable resultsTable;
     private JLabel winnerLabel;
-    private boolean initialized = false;
 
     public ResultsPanel(BuySellGameGUI frame, GameState gameState) {
         this.frame = frame;
@@ -1017,16 +1107,7 @@ class ResultsPanel extends JPanel {
         add(winnerLabel, BorderLayout.SOUTH);
     }
 
-    @Override
-    public void setVisible(boolean visible) {
-        super.setVisible(visible);
-        if (visible && !initialized) {
-            initializeResults();
-            initialized = true;
-        }
-    }
-
-    private void initializeResults() {
+    public void initializeResults() {
         // Clear and rebuild
         removeAll();
         
@@ -1052,13 +1133,29 @@ class ResultsPanel extends JPanel {
         add(tablePanel, BorderLayout.CENTER);
 
         // Winner announcement
+        JPanel bottomPanel = new JPanel(new BorderLayout(10, 10));
+        bottomPanel.setBackground(Color.WHITE);
         if (data.length > 0) {
             String winner = (String) data[0][1];
-            winnerLabel = new JLabel("🏆 Winner: " + winner + " 🏆");
+            winnerLabel = new JLabel("Winner: " + winner);
             winnerLabel.setFont(new Font("Arial", Font.BOLD, 16));
             winnerLabel.setHorizontalAlignment(JLabel.CENTER);
-            add(winnerLabel, BorderLayout.SOUTH);
+            bottomPanel.add(winnerLabel, BorderLayout.CENTER);
         }
+
+        JButton playAgainButton = new JButton("PLAY AGAIN");
+        playAgainButton.setFont(new Font("Arial", Font.BOLD, 16));
+        playAgainButton.setForeground(Color.BLACK);
+        playAgainButton.setBackground(new Color(34, 139, 34));
+        playAgainButton.setFocusPainted(false);
+        playAgainButton.setBorder(new LineBorder(Color.BLACK, 2));
+        playAgainButton.setPreferredSize(new Dimension(160, 50));
+        playAgainButton.addActionListener(e -> frame.showSetupScreen());
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
+        buttonPanel.setBackground(Color.WHITE);
+        buttonPanel.add(playAgainButton);
+        bottomPanel.add(buttonPanel, BorderLayout.SOUTH);
+        add(bottomPanel, BorderLayout.SOUTH);
         
         revalidate();
         repaint();
