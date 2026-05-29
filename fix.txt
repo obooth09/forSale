@@ -1,0 +1,4 @@
+In the refresh() method, remove the line:
+JPanel propertiesDisplayPanel = (JPanel) ((JPanel) mainPanel.getComponent(1)).getComponent(0);
+
+And just use the instance variable propertiesDisplayPanel directly (which is already initialized in the constructor).

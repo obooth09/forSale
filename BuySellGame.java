@@ -1,9 +1,11 @@
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
+import java.util.Set;
 
 /**
  * Buy & Sell Console - AP CSA style
@@ -129,7 +131,7 @@ class GameManager {
         System.out.println("                    FINAL RESULTS                    ");
         System.out.println("====================================================");
 
-        // Calculate score: money + sum of properties (purchased + passed)
+        // Calculate score: money + sum of cards won or taken.
         List<PlayerScore> scores = new ArrayList<>();
         for (Player p : players) {
             int propSum = 0;
@@ -141,7 +143,7 @@ class GameManager {
 
         Collections.sort(scores, Comparator.comparingInt(PlayerScore::getScore).reversed());
 
-        System.out.printf("%-4s | %-8s | %10s | %14s\n", "Rank", "Player", "Money", "Property Value");
+        System.out.printf("%-4s | %-8s | %10s | %14s\n", "Rank", "Player", "Money", "Card Points");
         System.out.println("----------------------------------------------------");
         int r = 1;
         for (PlayerScore ps : scores) {
@@ -185,8 +187,8 @@ class GameManager {
  */
 class RoundManager {
     private static final int PROPERTY_COUNT = 4;
-    private static final int MIN_PROPERTY_VALUE = 2000;
-    private static final int MAX_PROPERTY_VALUE = 10000;
+    private static final int MIN_CARD_VALUE = 1;
+    private static final int MAX_CARD_VALUE = 20;
     private static final int BID_INCREMENT = 1000;
 
     private final int roundNumber;
@@ -196,10 +198,12 @@ class RoundManager {
     private final List<Property> properties = new ArrayList<>();
     private final List<Player> activePlayers = new ArrayList<>();
     private final List<Player> passedPlayers = new ArrayList<>();
+    private final Set<Player> playersWithRoundCard = new HashSet<>();
     private final List<String> activityLog; // shared with GameManager
     private int currentHighestBid = 0;
     private Player currentHighestBidder = null;
     private final Random random = new Random();
+    private int guiTurnIndex = 0;
 
     public RoundManager(int roundNumber, int totalRounds, List<Player> players, Scanner scanner, List<String> activityLog) {
         this.roundNumber = roundNumber;
@@ -230,6 +234,7 @@ class RoundManager {
         activePlayers.clear();
         activePlayers.addAll(players);
         passedPlayers.clear();
+        playersWithRoundCard.clear();
         currentHighestBid = 0;
         currentHighestBidder = null;
         for (Player p : players) p.resetRoundState();
@@ -237,17 +242,22 @@ class RoundManager {
 
     private void generateProperties() {
         properties.clear();
+        List<Integer> cardValues = new ArrayList<>();
+        for (int value = MIN_CARD_VALUE; value <= MAX_CARD_VALUE; value++) {
+            cardValues.add(value);
+        }
+        Collections.shuffle(cardValues, random);
         for (int i = 0; i < PROPERTY_COUNT; i++) {
-            int value = MIN_PROPERTY_VALUE + random.nextInt(MAX_PROPERTY_VALUE - MIN_PROPERTY_VALUE + 1);
-            properties.add(new Property("Property " + (i+1), ((value + 499) / 1000) * 1000));
+            int value = cardValues.get(i);
+            properties.add(new Property("Card " + value, value));
         }
         Collections.sort(properties, Comparator.comparingInt(Property::getValue));
     }
 
     private void displayProperties() {
-        System.out.print("Available properties:");
+        System.out.print("Available cards:");
         for (Property property : properties) {
-            System.out.print(" [" + property.getName() + ": " + formatMoney(property.getValue()) + "]");
+            System.out.print(" [" + property.getName() + "]");
         }
         System.out.println();
     }
@@ -274,7 +284,8 @@ class RoundManager {
         int maxWill = calculateAiWillingness(player, highest);
 
         if (player.getCurrentBid() == 0) {
-            if (currentHighestBid == 0 || currentHighestBid < maxWill) {
+            int minBid = Math.max(BID_INCREMENT, currentHighestBid + BID_INCREMENT);
+            if (minBid <= maxWill && minBid <= player.getBalance()) {
                 int bid = Math.min(player.getBalance(), Math.max(BID_INCREMENT, currentHighestBid + BID_INCREMENT));
                 bid = ((bid + BID_INCREMENT - 1) / BID_INCREMENT) * BID_INCREMENT;
                 placeBid(player, bid);
@@ -295,10 +306,15 @@ class RoundManager {
     }
 
     private int calculateAiWillingness(Player player, Property highestProperty) {
-        double aggr = 0.5 + random.nextDouble() * 0.4; // 0.5 - 0.9
-        int target = (int)(highestProperty.getValue() * aggr);
-        int buffered = Math.max(target, currentHighestBid + BID_INCREMENT);
-        return Math.min(buffered, player.getBalance());
+        double aggr = 0.25 + random.nextDouble() * 0.35; // 0.25 - 0.6
+        if (highestProperty.getValue() <= 7) {
+            aggr *= 0.55;
+        } else if (highestProperty.getValue() <= 12) {
+            aggr *= 0.75;
+        }
+        int target = (int)(highestProperty.getValue() * 1000 * aggr);
+        target = (target / BID_INCREMENT) * BID_INCREMENT;
+        return Math.min(target, player.getBalance());
     }
 
     private void placeBid(Player player, int amount) {
@@ -313,12 +329,23 @@ class RoundManager {
         player.setHasPassed(true);
         activePlayers.remove(player);
         passedPlayers.add(player);
+        if (playersWithRoundCard.contains(player)) {
+            logActivity(player.getName() + " already has a card this round");
+            player.setCurrentBid(0);
+            recomputeHighestBidder();
+            return;
+        }
+        if (properties.isEmpty()) {
+            logActivity(player.getName() + " " + reason);
+            player.setCurrentBid(0);
+            recomputeHighestBidder();
+            return;
+        }
         Property prop = removeLowestProperty();
-        int cost = player.getCurrentBid() / 2;
-        player.adjustBalance(-cost);
         player.addPassedProperty(prop);
-        String act = player.getName() + " " + reason + " and receives " + prop.getName() + " for " + formatMoney(cost);
-        if (player.isHuman()) act = "You pass and receive " + prop.getName() + " for " + formatMoney(cost);
+        playersWithRoundCard.add(player);
+        String act = player.getName() + " " + reason + " and receives " + prop.getName() + " for free";
+        if (player.isHuman()) act = "You pass and receive " + prop.getName() + " for free";
         logActivity(act);
         player.setCurrentBid(0);
         recomputeHighestBidder();
@@ -342,17 +369,19 @@ class RoundManager {
             Property p = removeHighestProperty();
             winner.adjustBalance(-bid);
             winner.addPurchasedProperty(p);
+            playersWithRoundCard.add(winner);
             String msg = winner.getName() + " wins the round with a bid of " + formatMoney(bid) + " and receives " + p.getName();
             if (winner.isHuman()) msg = "You win the round with a bid of " + formatMoney(bid) + " and receive " + p.getName();
             logActivity(msg);
         } else if (activePlayers.isEmpty()) {
-            logActivity("All players passed. Remaining properties are not awarded this round.");
+            logActivity("All players passed. Remaining cards are not awarded this round.");
         } else {
             Player winner = currentHighestBidder != null ? currentHighestBidder : activePlayers.get(0);
             int bid = winner.getCurrentBid();
             Property p = removeHighestProperty();
             winner.adjustBalance(-bid);
             winner.addPurchasedProperty(p);
+            playersWithRoundCard.add(winner);
             String msg = winner.getName() + " wins the round with a final bid of " + formatMoney(bid) + " and receives " + p.getName();
             if (winner.isHuman()) msg = "You win the round with a final bid of " + formatMoney(bid) + " and receive " + p.getName();
             logActivity(msg);
@@ -368,20 +397,20 @@ class RoundManager {
         displayProperties();
         System.out.println("Current highest bid: " + formatMoney(currentHighestBid) + (currentHighestBidder == null ? "" : " by " + currentHighestBidder.getName()));
         System.out.println("----------------------------------------------------");
-        System.out.printf("%-8s | %10s | %10s | %12s\n", "Player", "Balance", "Bid", "Owned Props");
+        System.out.printf("%-8s | %10s | %10s | %12s\n", "Player", "Balance", "Bid", "Cards");
         System.out.println("----------------------------------------------------");
         for (Player p : players) {
-            System.out.printf("%-8s | $%9d | $%8d | %10d props\n", p.getName(), p.getBalance(), p.getCurrentBid(), p.getPurchasedProperties().size() + p.getPassedProperties().size());
+            System.out.printf("%-8s | $%9d | $%8d | %10d cards\n", p.getName(), p.getBalance(), p.getCurrentBid(), p.getPurchasedProperties().size() + p.getPassedProperties().size());
         }
         System.out.println("----------------------------------------------------");
 
-        // show human properties
+        // show human cards
         for (Player p : players) {
             if (p.isHuman()) {
-                System.out.print("Your properties: ");
+                System.out.print("Your cards: ");
                 List<String> names = new ArrayList<>();
-                for (Property pr : p.getPurchasedProperties()) names.add(pr.getName() + "(" + formatMoney(pr.getValue()) + ")");
-                for (Property pr : p.getPassedProperties()) names.add(pr.getName() + "(" + formatMoney(pr.getValue()) + ")");
+                for (Property pr : p.getPurchasedProperties()) names.add(pr.getName());
+                for (Property pr : p.getPassedProperties()) names.add(pr.getName());
                 if (names.isEmpty()) System.out.println("(none)"); else System.out.println(String.join(", ", names));
                 break;
             }
@@ -417,6 +446,125 @@ class RoundManager {
     private void logActivity(String action) { activityLog.add(action); }
     private String formatMoney(int amount) { return "$" + amount; }
     private void clearConsole() { System.out.print("\033[H\033[2J"); System.out.flush(); }
+
+    // GUI support methods
+    public List<Property> getAvailableProperties() { return new ArrayList<>(properties); }
+    public int getCurrentHighestBid() { return currentHighestBid; }
+    public Player getCurrentHighestBidder() { return currentHighestBidder; }
+    public boolean isPlayerActive(Player player) { return activePlayers.contains(player) && !player.hasPassed(); }
+    public int getActiveAiPlayerCount() {
+        int count = 0;
+        for (Player player : activePlayers) {
+            if (!player.isHuman() && !player.hasPassed()) count++;
+        }
+        return count;
+    }
+
+    public void placeBidGui(Player player, int bidAmount) {
+        if (bidAmount % BID_INCREMENT != 0) bidAmount = (bidAmount / BID_INCREMENT) * BID_INCREMENT;
+        player.setCurrentBid(bidAmount);
+        currentHighestBid = bidAmount;
+        currentHighestBidder = player;
+        guiTurnIndex = players.indexOf(player) + 1;
+        logActivity(player.getName() + " bids " + formatMoney(bidAmount));
+    }
+
+    public void passPlayerGui(Player player) {
+        player.setHasPassed(true);
+        activePlayers.remove(player);
+        passedPlayers.add(player);
+        if (playersWithRoundCard.contains(player)) {
+            logActivity(player.getName() + " already has a card this round");
+            player.setCurrentBid(0);
+            recomputeHighestBidder();
+            guiTurnIndex = players.indexOf(player) + 1;
+            return;
+        }
+        if (!properties.isEmpty()) {
+            Property property = removeLowestProperty();
+            player.addPassedProperty(property);
+            playersWithRoundCard.add(player);
+            logActivity(player.getName() + " passes and receives " + property.getName() + " for free");
+        }
+        player.setCurrentBid(0);
+        recomputeHighestBidder();
+        guiTurnIndex = players.indexOf(player) + 1;
+    }
+
+    public void processRoundGui(GameState gameState) {
+        // Process AI players' turns
+        for (Player p : new ArrayList<>(activePlayers)) {
+            if (p.hasPassed() || p.isHuman()) continue;
+            if (activePlayers.size() <= 1) break;
+            aiTurn(p);
+        }
+
+        // Check if round is complete
+        if (activePlayers.size() <= 1) {
+            concludeRoundGui(gameState);
+        }
+    }
+
+    public boolean processNextAiTurnGui(GameState gameState) {
+        if (activePlayers.size() <= 1 || properties.isEmpty()) {
+            concludeRoundGui(gameState);
+            return false;
+        }
+
+        for (int checked = 0; checked < players.size(); checked++) {
+            int index = (guiTurnIndex + checked) % players.size();
+            Player player = players.get(index);
+            if (!player.isHuman() && activePlayers.contains(player) && !player.hasPassed()) {
+                guiTurnIndex = (index + 1) % players.size();
+                aiTurn(player);
+                if (activePlayers.size() <= 1) {
+                    concludeRoundGui(gameState);
+                }
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void concludeRoundGui(GameState gameState) {
+        if (roundComplete) return;
+
+        if (activePlayers.size() == 1) {
+            Player winner = activePlayers.get(0);
+            int bid = winner.getCurrentBid();
+            if (!properties.isEmpty() && !playersWithRoundCard.contains(winner)) {
+                Property p = removeHighestProperty();
+                winner.adjustBalance(-bid);
+                winner.addPurchasedProperty(p);
+                playersWithRoundCard.add(winner);
+                String msg = winner.getName() + " wins the round with a bid of " + formatMoney(bid) + " and receives " + p.getName();
+                logActivity(msg);
+            }
+        } else if (!activePlayers.isEmpty()) {
+            Player winner = currentHighestBidder != null ? currentHighestBidder : activePlayers.get(0);
+            int bid = winner.getCurrentBid();
+            if (!properties.isEmpty() && !playersWithRoundCard.contains(winner)) {
+                Property p = removeHighestProperty();
+                winner.adjustBalance(-bid);
+                winner.addPurchasedProperty(p);
+                playersWithRoundCard.add(winner);
+                String msg = winner.getName() + " wins the round with a final bid of " + formatMoney(bid) + " and receives " + p.getName();
+                logActivity(msg);
+            }
+        } else {
+            logActivity("All players passed. Remaining cards are not awarded this round.");
+        }
+        roundComplete = true;
+    }
+
+    private boolean roundComplete = false;
+
+    public boolean isRoundComplete() { return roundComplete; }
+
+    public void initializeForGui() {
+        prepareRound();
+    }
 }
 
 /**
@@ -427,6 +575,7 @@ class Player {
     private int balance;
     private final boolean human;
     private int currentBid;
+    private int checkTotal;
     private boolean passed;
     private final List<Property> purchasedProperties = new ArrayList<>();
     private final List<Property> passedProperties = new ArrayList<>();
@@ -439,6 +588,7 @@ class Player {
 
     public String getName() { return name; }
     public int getBalance() { return balance; }
+    public int getCheckTotal() { return checkTotal; }
     public boolean isHuman() { return human; }
     public int getCurrentBid() { return currentBid; }
     public List<Property> getPurchasedProperties() { return purchasedProperties; }
@@ -449,8 +599,20 @@ class Player {
     public void setCurrentBid(int bid) { currentBid = bid; }
     public void setHasPassed(boolean passed) { this.passed = passed; }
     public void adjustBalance(int amount) { balance += amount; }
+    public void addCheck(int amount) { checkTotal += amount; }
     public void addPurchasedProperty(Property property) { purchasedProperties.add(property); }
     public void addPassedProperty(Property property) { passedProperties.add(property); }
+    public List<Property> getAllCards() {
+        List<Property> cards = new ArrayList<>();
+        cards.addAll(purchasedProperties);
+        cards.addAll(passedProperties);
+        return cards;
+    }
+    public void removeCard(Property property) {
+        if (!purchasedProperties.remove(property)) {
+            passedProperties.remove(property);
+        }
+    }
 }
 
 /**
